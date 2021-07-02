@@ -5,7 +5,7 @@
   "description": "Hyper Storage port adapter for file system",
   "homepage": "https://github.com/hyper63/hyper-adapter-fs",
   "repo": "https://github.com/hyper63/hyper-adapter-fs",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "unstable": false,
   "unlisted": false,
   "files": [
