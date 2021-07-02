@@ -1,43 +1,79 @@
-# hyper-adapter-fs
+<h1 align="center">hyper-adapter-fs</h1>
+<p align="center">A Storage port adapter that uses the local file system for object storage in the <a href="https://hyper.io/">hyper</a>  service framework</p>
+</p>
+<p align="center">
+  <a href="https://nest.land/package/hyper-adapter-fs"><img src="https://nest.land/badge.svg" alt="Nest Badge" /></a>
+  <a href="https://github.com/hyper63/hyper-adapter-fs/actions/workflows/test.yml"><img src="https://github.com/hyper63/hyper-adapter-fs/actions/workflows/test.yml/badge.svg" alt="Test" /></a>
+  <a href="https://github.com/hyper63/hyper-adapter-fs/tags/"><img src="https://img.shields.io/github/tag/hyper63/hyper-adapter-fs" alt="Current Version" /></a>
+</p>
 
-[![nest badge](https://nest.land/badge.svg)](https://nest.land/package/hyper-adapter-fs)
-[![current version](https://img.shields.io/github/tag/hyper63/hyper-adapter-fs)](https://github.com/hyper63/hyper-adapter-fs/tags/)
-[![test status](https://github.com/hyper63/hyper-adapter-fs/workflows/.github/workflows/test.yml/badge.svg)](https://github.com/hyper63/hyper-adapter-fs/actions/workflows/test.yml)
+---
 
-## File system hyper Storage port adapter
+## Table of Contents
 
-This adapter uses the file system to store unstructured objects in the hyper63
-service framework.
+- [Getting Started](#getting-started)
+- [Installation](#installation)
+- [Features](#features)
+- [Methods](#methods)
+- [Contributing](#contributing)
+- [License](#license)
 
-## How to configure
+## Getting Started
 
-```sh
-npm install @hyper63/adapter-fs
-```
-
-In config
+`hyper.config.js`
 
 ```js
-import fs from "@hyper63/adapter-fs";
+import { default as fs } from "https://x.nest.land/hyper-adapter-fs@1.0.7/mod.js";
 
 export default {
-  app: express,
-  adapters: [
-    ...{ port: "storage", plugins: [fs({ dir: "./data" })] },
+  app: opine,
+  adapter: [
+    { port: "storage", plugins: [fs({ dir: "./data" })] },
   ],
 };
 ```
 
-## How to use
+## Installation
 
-https://purple-elephants.surge.sh
+This is a Deno module available to import from
+[nest.land](https://nest.land/package/hyper-adapter-fs)
+
+deps.js
+
+```js
+export { default as fs } from "https://x.nest.land/hyper-adapter-fs@1.0.6/mod.js";
+```
+
+## Features
+
+- Create an bucket as a directory
+- Remove an bucket as a directory
+- List buckets as directories
+- Put an object into a bucket as a directory
+- Remove an object from a bucket as a directory
+- Get an object from a bucket as a directory
+- List objects in a bucket as a directory
+
+## Methods
+
+This adapter fully implements the Search port and can be used as the
+[hyper Storage service](https://docs.hyper.io/storage-api) adapter
+
+See the full port [here](https://nest.land/package/hyper-port-storage)
+
+## Contributing
+
+Contributions are welcome! See the hyper
+[contribution guide](https://docs.hyper.io/contributing-to-hyper)
 
 ## Testing
+
+```
+./scripts/test.sh
+```
+
+To lint, check formatting, and run unit tests
 
 ## License
 
 Apache-2.0
-
-## More information
-
-https://github.com/hyper63/hyper63#readme
