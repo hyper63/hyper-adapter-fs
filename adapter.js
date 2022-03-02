@@ -1,4 +1,5 @@
 import { crocks, path, R } from "./deps.js";
+import { handleHyperErr, HyperErr } from "./utils.js";
 
 const { Async } = crocks;
 const { always, identity } = R;
@@ -9,7 +10,6 @@ const { always, identity } = R;
  * This adapter uses the file system
  * as the implementation details for
  * the storage port.
- *
  *
  * @typedef {Object} StorageInfo
  * @property {string} bucket
@@ -34,21 +34,30 @@ export default function (root) {
       "STORAGE: FS_Adapter: root directory required for this service!",
     );
   }
+
+  const open = Async.fromPromise(Deno.open.bind(Deno));
+  const mkdir = Async.fromPromise(Deno.mkdir.bind(Deno));
+  const rm = Async.fromPromise(Deno.remove.bind(Deno));
+  const rmdir = Async.fromPromise(Deno.remove.bind(Deno));
+  const create = Async.fromPromise(Deno.create.bind(Deno));
+  const copy = Async.fromPromise(Deno.copy.bind(Deno));
+
+  const resolvePath = (...pieces) => path.resolve(path.join(root, ...pieces));
+
   /**
    * @param {string} name
    * @returns {Promise<Response>}
    */
   function makeBucket(name) {
-    if (!name) {
-      return Promise.reject({ ok: false, msg: "name for bucket is required!" });
-    }
-
-    const mkdir = Async.fromPromise(Deno.mkdir.bind(Deno));
-
-    return mkdir(path.resolve(path.join(root, name)))
+    return Async.of(resolvePath(name))
+      .chain(mkdir)
       .bimap(
-        (err) => ({ ok: false, error: err.message }),
+        (err) => HyperErr({ msg: err.message }),
         always({ ok: true }),
+      )
+      .bichain(
+        handleHyperErr,
+        Async.Resolved,
       )
       .toPromise();
   }
@@ -58,17 +67,16 @@ export default function (root) {
    * @returns {Promise<Response>}
    */
   function removeBucket(name) {
-    if (!name) {
-      return Promise.reject({ ok: false, msg: "name for bucket is required!" });
-    }
-
-    const rmdir = Async.fromPromise(Deno.remove.bind(Deno));
-
-    // TODO: Tyler. Do we want to do a recursive remove here?
-    return rmdir(path.resolve(path.join(root, name)))
+    return Async.of(resolvePath(name))
+      // deletes all contents of directory, then directory
+      .chain((bucket) => rmdir(bucket, { recursive: true }))
       .bimap(
-        (err) => ({ ok: false, error: err.message }),
+        (err) => HyperErr({ msg: err.message }),
         always({ ok: true }),
+      )
+      .bichain(
+        handleHyperErr,
+        Async.Resolved,
       )
       .toPromise();
   }
@@ -77,36 +85,28 @@ export default function (root) {
    * @param {StorageObject}
    * @returns {Promise<Response>}
    */
-  async function putObject({ bucket, object, stream }) {
-    if (!bucket) {
-      return Promise.reject({ ok: false, msg: "bucket name required" });
-    }
-    if (!object) {
-      return Promise.reject({ ok: false, msg: "object name required" });
-    }
-    if (!stream) {
-      return Promise.reject({ ok: false, msg: "stream is required" });
-    }
-
-    let file;
-    try {
-      // Create Writer
-      file = await Deno.create(
-        path.join(
-          path.resolve(path.join(root, bucket)),
-          object,
-        ),
-      );
-
+  function putObject({ bucket, object, stream }) {
+    // Create Writer
+    return Async.of(resolvePath(bucket, object))
+      .chain(create)
       // Copy Reader into Writer
-      await Deno.copy(stream, file);
+      .chain((file) => {
+        const close = Async.fromPromise(() => Promise.resolve(file.close()));
 
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, msg: err.message };
-    } finally {
-      file && await file.close();
-    }
+        return copy(stream, file)
+          .bichain(
+            (err) => close().map(always(err)),
+            (res) => close().map(always(res)),
+          );
+      })
+      .bimap(
+        (err) => HyperErr({ msg: err.message }),
+        always({ ok: true }),
+      )
+      .bichain(
+        handleHyperErr,
+        Async.Resolved,
+      ).toPromise();
   }
 
   /**
@@ -114,21 +114,15 @@ export default function (root) {
    * @returns {Promise<Response>}
    */
   function removeObject({ bucket, object }) {
-    if (!bucket) {
-      return Promise.reject({ ok: false, msg: "bucket name required" });
-    }
-    if (!object) {
-      return Promise.reject({ ok: false, msg: "object name required" });
-    }
-
-    const rm = Async.fromPromise(Deno.remove.bind(Deno));
-
-    return rm(
-      path.resolve(path.join(root, bucket, object)),
-    ).bimap(
-      (err) => ({ ok: false, error: err.message }),
-      always({ ok: true }),
-    ).toPromise();
+    return Async.of(resolvePath(bucket, object))
+      .chain(rm)
+      .bimap(
+        (err) => HyperErr({ msg: err.message }),
+        always({ ok: true }),
+      ).bichain(
+        handleHyperErr,
+        Async.Resolved,
+      ).toPromise();
   }
 
   /**
@@ -136,37 +130,23 @@ export default function (root) {
    * @returns {Promise<stream>}
    */
   function getObject({ bucket, object }) {
-    if (!bucket) {
-      return Promise.reject({ ok: false, msg: "bucket name required" });
-    }
-    if (!object) {
-      return Promise.reject({ ok: false, msg: "object name required" });
-    }
-
-    const open = Async.fromPromise(Deno.open.bind(Deno));
-
-    return open(
-      path.resolve(path.join(root, bucket, object)),
-      {
-        read: true,
-        write: false,
-      },
-    ).bimap(
-      (err) => ({ ok: false, msg: err.message }),
-      identity,
-    ).toPromise();
+    return Async.of(resolvePath(bucket, object))
+      .chain((p) => open(p, { read: true, write: false }))
+      .bimap(
+        (err) => HyperErr({ msg: err.message }),
+        identity,
+      ).bichain(
+        handleHyperErr,
+        Async.Resolved,
+      ).toPromise();
   }
 
   async function listObjects({ bucket, prefix = "" }) {
-    if (!bucket) {
-      return Promise.reject({ ok: false, msg: "bucket name required" });
-    }
-
     const files = [];
     try {
       for await (
         const dirEntry of Deno.readDir(
-          path.resolve(path.join(root, bucket, prefix)),
+          resolvePath(bucket, prefix),
         )
       ) {
         files.push(dirEntry.name);
@@ -174,14 +154,14 @@ export default function (root) {
 
       return files;
     } catch (err) {
-      return { ok: false, error: err.message };
+      return Promise.resolve(HyperErr({ msg: err.message }));
     }
   }
 
   return Object.freeze({
     makeBucket,
     removeBucket,
-    listBuckets: () => null,
+    listBuckets: () => Promise.resolve(null),
     putObject,
     removeObject,
     getObject,

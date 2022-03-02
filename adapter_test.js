@@ -9,7 +9,7 @@ import createAdapter from "./adapter.js";
 
 const v4 = v4Generator.generate.bind(v4Generator);
 
-const adapter = createAdapter("./");
+const adapter = createAdapter("./tmp");
 
 function emptyReader() {
   return {
@@ -57,6 +57,13 @@ function textReader(text = "") {
   }
 
   return { read };
+}
+
+for await (const dirEntry of Deno.readDir("./tmp")) {
+  if (dirEntry.isDirectory) {
+    console.log("deleting test bucket: ", dirEntry);
+    await Deno.remove(`./tmp/${dirEntry.name}`, { recursive: true });
+  }
 }
 
 Deno.test("fs adapter make bucket", async () => {
