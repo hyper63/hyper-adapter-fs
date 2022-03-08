@@ -1,6 +1,7 @@
 import {
   assert,
   assertEquals,
+  assertObjectMatch,
   readAll,
   v4 as v4Generator,
 } from "./dev_deps.js";
@@ -71,6 +72,17 @@ Deno.test("fs adapter make bucket", async () => {
   const result = await adapter.makeBucket(bucket);
   assert(result.ok);
   await adapter.removeBucket(bucket);
+});
+
+Deno.test("fs adapter make bucket - invalid name", async () => {
+  const bucket = v4();
+  const err = await adapter.makeBucket(`../${bucket}`);
+
+  assertObjectMatch(err, {
+    ok: false,
+    status: 400,
+    msg: "bucket name cannot contain relative path parts",
+  });
 });
 
 Deno.test("fs adapter put object", async () => {

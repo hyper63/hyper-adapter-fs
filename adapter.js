@@ -49,12 +49,21 @@ export default function (root) {
    * @returns {Promise<Response>}
    */
   function makeBucket(name) {
-    return Async.of(resolvePath(name))
+    return Async.of(name.includes(".."))
+      .chain((invalid) =>
+        !invalid ? Async.Resolved(resolvePath(name)) : Async.Rejected(
+          HyperErr({
+            status: 400,
+            msg: "bucket name cannot contain relative path parts",
+          }),
+        )
+      )
       // see https://doc.deno.land/deno/stable/~/Deno.mkdir
-      .chain((dir) => mkdir(dir, { recursive: true }))
-      .bimap(
-        (err) => HyperErr({ msg: err.message }),
-        always({ ok: true }),
+      .chain((dir) =>
+        mkdir(dir, { recursive: true }).bimap(
+          (err) => HyperErr({ msg: err.message }),
+          always({ ok: true }),
+        )
       )
       .bichain(
         handleHyperErr,
