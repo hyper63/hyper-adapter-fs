@@ -2,7 +2,7 @@ import { R } from "./deps.js";
 
 import adapter from "./adapter.js";
 
-const { merge } = R;
+const { mergeRight } = R;
 
 /**
  * hyper63 fs plugin for the storage port. This plugin is an adapter that
@@ -35,7 +35,7 @@ export default function (config) {
   return ({
     id: "fs",
     port: "storage",
-    load: merge(config),
+    load: mergeRight(config),
     link: ({ dir }) => () => adapter(dir),
   });
 }
