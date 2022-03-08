@@ -50,7 +50,8 @@ export default function (root) {
    */
   function makeBucket(name) {
     return Async.of(resolvePath(name))
-      .chain(mkdir)
+      // see https://doc.deno.land/deno/stable/~/Deno.mkdir
+      .chain((dir) => mkdir(dir, { recursive: true }))
       .bimap(
         (err) => HyperErr({ msg: err.message }),
         always({ ok: true }),

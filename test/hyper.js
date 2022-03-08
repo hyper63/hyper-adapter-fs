@@ -7,7 +7,7 @@ import fs from "../mod.js";
 const hyperConfig = {
   app: appOpine,
   adapters: [
-    { port: "storage", plugins: [fs({ dir: './tmp' })] },
+    { port: "storage", plugins: [fs({ dir: "./tmp" })] },
   ],
 };
 
