@@ -1,5 +1,5 @@
 import { crocks, HyperErr, isHyperErr, path, R } from "./deps.js";
-import { handleHyperErr, mapBucketDne } from "./utils.js";
+import { checkDirExists, handleHyperErr, mapBucketDne } from "./utils.js";
 
 const { Async } = crocks;
 const { always, identity } = R;
@@ -58,13 +58,20 @@ export default function (root) {
           }),
         )
       )
-      // see https://doc.deno.land/deno/stable/~/Deno.mkdir
-      .chain((dir) =>
-        mkdir(dir, { recursive: true }).bimap(
-          (err) => HyperErr({ msg: err.message }),
-          always({ ok: true }),
+      .chain((path) =>
+        checkDirExists(path).bichain(
+          // directory dne, so resolve
+          () => Async.Resolved(path),
+          // does exist, so reject
+          () =>
+            Async.Rejected(
+              HyperErr({ status: 409, msg: "bucket already exists" }),
+            ),
         )
       )
+      // see https://doc.deno.land/deno/stable/~/Deno.mkdir
+      .chain((dir) => mkdir(dir, { recursive: true }))
+      .map(always({ ok: true }))
       .bichain(
         handleHyperErr,
         Async.Resolved,

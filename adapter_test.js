@@ -85,6 +85,18 @@ Deno.test("fs adapter make bucket - invalid name", async () => {
   });
 });
 
+Deno.test("fs adapter make bucket - 409 if already exists", async () => {
+  const bucket = v4();
+  await adapter.makeBucket(bucket);
+  const result = await adapter.makeBucket(bucket);
+
+  console.log(result);
+
+  assert(!result.ok);
+  assertEquals(result.status, 409);
+  await adapter.removeBucket(bucket);
+});
+
 Deno.test("fs adapter remove bucket", async () => {
   const bucket = v4();
   await adapter.makeBucket(bucket);

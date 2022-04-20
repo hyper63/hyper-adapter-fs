@@ -1,7 +1,7 @@
 import { crocks, HyperErr, isHyperErr, R } from "./deps.js";
 
 const { Async } = crocks;
-const { ifElse, is, always } = R;
+const { ifElse, is, always, identity } = R;
 
 export const handleHyperErr = ifElse(
   isHyperErr,
@@ -17,3 +17,12 @@ export const mapBucketDne = ifElse(
     return err;
   },
 );
+
+export const checkDirExists = (path) =>
+  Async.of(path)
+    .chain(Async.fromPromise(Deno.stat.bind(Deno)))
+    .bimap(
+      mapBucketDne,
+      identity,
+    )
+    .map(always(path));
