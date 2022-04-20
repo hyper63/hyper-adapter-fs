@@ -23,7 +23,7 @@
 `hyper.config.js`
 
 ```js
-import { default as fs } from "https://x.nest.land/hyper-adapter-fs@1.0.7/mod.js";
+import { default as fs } from "https://x.nest.land/hyper-adapter-fs@2.0.3/mod.js";
 
 export default {
   app: opine,
@@ -41,7 +41,7 @@ This is a Deno module available to import from
 deps.js
 
 ```js
-export { default as fs } from "https://x.nest.land/hyper-adapter-fs@1.0.6/mod.js";
+export { default as fs } from "https://x.nest.land/hyper-adapter-fs@2.0.3/mod.js";
 ```
 
 ## Features
@@ -56,7 +56,7 @@ export { default as fs } from "https://x.nest.land/hyper-adapter-fs@1.0.6/mod.js
 
 ## Methods
 
-This adapter fully implements the Search port and can be used as the
+This adapter fully implements the Storage port and can be used as the
 [hyper Storage service](https://docs.hyper.io/storage-api) adapter
 
 See the full port [here](https://nest.land/package/hyper-port-storage)
