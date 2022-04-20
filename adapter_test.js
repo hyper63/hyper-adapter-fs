@@ -85,6 +85,36 @@ Deno.test("fs adapter make bucket - invalid name", async () => {
   });
 });
 
+Deno.test("fs adapter remove bucket", async () => {
+  const bucket = v4();
+  await adapter.makeBucket(bucket);
+  const result = await adapter.removeBucket(bucket);
+  assert(result.ok);
+});
+
+Deno.test("fs adapter remove bucket - 404 if not found", async () => {
+  const bucket = v4();
+  const result = await adapter.removeBucket(bucket);
+  assert(!result.ok);
+  assertEquals(result.status, 404);
+});
+
+Deno.test("fs adapter all methods 404 - if bucket not found", async () => {
+  const object = v4() + ".txt";
+
+  // test
+  const stream = textReader("woop woop");
+
+  const result = await adapter.putObject({
+    bucket: "dne",
+    object,
+    stream,
+  });
+
+  assert(!result.ok);
+  assertEquals(result.status, 404);
+});
+
 Deno.test("fs adapter put object", async () => {
   // setup
   const bucket = v4();

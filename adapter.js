@@ -1,5 +1,5 @@
-import { crocks, path, R } from "./deps.js";
-import { handleHyperErr, HyperErr } from "./utils.js";
+import { crocks, HyperErr, isHyperErr, path, R } from "./deps.js";
+import { handleHyperErr, mapBucketDne } from "./utils.js";
 
 const { Async } = crocks;
 const { always, identity } = R;
@@ -81,9 +81,10 @@ export default function (root) {
       // deletes all contents of directory, then directory
       .chain((bucket) => rmdir(bucket, { recursive: true }))
       .bimap(
-        (err) => HyperErr({ msg: err.message }),
-        always({ ok: true }),
+        mapBucketDne,
+        identity,
       )
+      .map(always({ ok: true }))
       .bichain(
         handleHyperErr,
         Async.Resolved,
@@ -99,6 +100,10 @@ export default function (root) {
     // Create Writer
     return Async.of(resolvePath(bucket, object))
       .chain(create)
+      .bimap(
+        mapBucketDne,
+        identity,
+      )
       // Copy Reader into Writer
       .chain((file) => {
         const close = Async.fromPromise(() => Promise.resolve(file.close()));
@@ -109,10 +114,7 @@ export default function (root) {
             (res) => close().map(always(res)),
           );
       })
-      .bimap(
-        (err) => HyperErr({ msg: err.message }),
-        always({ ok: true }),
-      )
+      .map(always({ ok: true }))
       .bichain(
         handleHyperErr,
         Async.Resolved,
@@ -127,9 +129,11 @@ export default function (root) {
     return Async.of(resolvePath(bucket, object))
       .chain(rm)
       .bimap(
-        (err) => HyperErr({ msg: err.message }),
-        always({ ok: true }),
-      ).bichain(
+        mapBucketDne,
+        identity,
+      )
+      .map(always({ ok: true }))
+      .bichain(
         handleHyperErr,
         Async.Resolved,
       ).toPromise();
@@ -143,9 +147,10 @@ export default function (root) {
     return Async.of(resolvePath(bucket, object))
       .chain((p) => open(p, { read: true, write: false }))
       .bimap(
-        (err) => HyperErr({ msg: err.message }),
+        mapBucketDne,
         identity,
-      ).bichain(
+      )
+      .bichain(
         handleHyperErr,
         Async.Resolved,
       ).toPromise();
@@ -164,7 +169,12 @@ export default function (root) {
 
       return files;
     } catch (err) {
-      return Promise.resolve(HyperErr({ msg: err.message }));
+      // deno-lint-ignore no-ex-assign
+      err = mapBucketDne(err);
+      if (isHyperErr(err)) {
+        return err;
+      }
+      throw err;
     }
   }
 
