@@ -157,6 +157,22 @@ Deno.test("fs adapter put object", async () => {
   });
 });
 
+Deno.test("fs adapter put object - useSignedUrl", async () => {
+  // setup
+  const bucket = v4();
+  const object = v4() + ".txt";
+  await adapter.makeBucket(bucket);
+
+  // test
+  const result = await adapter.putObject({
+    bucket,
+    object,
+    useSignedUrl: true,
+  }).catch((err) => err);
+  assert(!result.ok);
+  assert(result.status === 501);
+});
+
 Deno.test("fs adapter get object", async () => {
   const bucket = v4();
   const object = v4() + ".txt";
@@ -191,6 +207,22 @@ Deno.test("fs adapter get object", async () => {
   await adapter.removeBucket(bucket).catch(() => {
     return { ok: false };
   });
+});
+
+Deno.test("fs adapter get object - useSignedUrl", async () => {
+  // setup
+  const bucket = v4();
+  const object = v4() + ".txt";
+  await adapter.makeBucket(bucket);
+
+  // test
+  const result = await adapter.getObject({
+    bucket,
+    object,
+    useSignedUrl: true,
+  }).catch((err) => err);
+  assert(!result.ok);
+  assert(result.status === 501);
 });
 
 Deno.test("list files", async () => {
