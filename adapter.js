@@ -103,7 +103,15 @@ export default function (root) {
    * @param {StorageObject}
    * @returns {Promise<Response>}
    */
-  function putObject({ bucket, object, stream }) {
+  function putObject({ bucket, object, stream, useSignedUrl }) {
+    if (useSignedUrl) {
+      return Promise.resolve(
+        HyperErr({
+          status: 501,
+          msg: "Not Implemented",
+        }),
+      );
+    }
     // Create Writer
     return Async.of(resolvePath(bucket, object))
       .chain(create)
@@ -150,7 +158,16 @@ export default function (root) {
    * @param {StorageInfo}
    * @returns {Promise<stream>}
    */
-  function getObject({ bucket, object }) {
+  function getObject({ bucket, object, useSignedUrl }) {
+    if (useSignedUrl) {
+      return Promise.resolve(
+        HyperErr({
+          status: 501,
+          msg: "Not Implemented",
+        }),
+      );
+    }
+
     return Async.of(resolvePath(bucket, object))
       .chain((p) => open(p, { read: true, write: false }))
       .bimap(
