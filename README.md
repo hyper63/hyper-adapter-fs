@@ -23,14 +23,12 @@
 `hyper.config.js`
 
 ```js
-import { default as fs } from "https://x.nest.land/hyper-adapter-fs@2.0.3/mod.js";
+import { default as fs } from 'https://x.nest.land/hyper-adapter-fs@2.0.3/mod.js'
 
 export default {
   app: opine,
-  adapter: [
-    { port: "storage", plugins: [fs({ dir: "./data" })] },
-  ],
-};
+  adapter: [{ port: 'storage', plugins: [fs({ dir: './data' })] }],
+}
 ```
 
 ## Installation
@@ -41,7 +39,7 @@ This is a Deno module available to import from
 deps.js
 
 ```js
-export { default as fs } from "https://x.nest.land/hyper-adapter-fs@2.0.3/mod.js";
+export { default as fs } from 'https://x.nest.land/hyper-adapter-fs@2.0.3/mod.js'
 ```
 
 ## Features
@@ -69,7 +67,7 @@ Contributions are welcome! See the hyper
 ## Testing
 
 ```
-./scripts/test.sh
+deno task test
 ```
 
 To lint, check formatting, and run unit tests

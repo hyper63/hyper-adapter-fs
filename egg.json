@@ -8,14 +8,8 @@
   "version": "2.1.0",
   "unstable": false,
   "unlisted": false,
-  "files": [
-    "./*"
-  ],
-  "ignore": [
-    "./package.json",
-    "./scripts/*",
-    "./.git*"
-  ],
+  "files": ["./*"],
+  "ignore": ["./.git*"],
   "checkFormat": false,
   "checkTests": false,
   "checkInstallation": false,

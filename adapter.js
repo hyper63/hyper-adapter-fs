@@ -1,8 +1,8 @@
-import { crocks, HyperErr, isHyperErr, path, R } from "./deps.js";
-import { checkDirExists, handleHyperErr, mapBucketDne } from "./utils.js";
+import { crocks, HyperErr, isHyperErr, path, R } from './deps.js'
+import { checkDirExists, handleHyperErr, mapBucketDne } from './utils.js'
 
-const { Async } = crocks;
-const { always, identity } = R;
+const { Async } = crocks
+const { always, identity } = R
 
 /**
  * hyper63 adapter for the storage port
@@ -31,30 +31,30 @@ const { always, identity } = R;
 export default function (root) {
   if (!root) {
     throw new Error(
-      "STORAGE: FS_Adapter: root directory required for this service!",
-    );
+      'STORAGE: FS_Adapter: root directory required for this service!',
+    )
   }
 
-  const open = Async.fromPromise(Deno.open.bind(Deno));
-  const mkdir = Async.fromPromise(Deno.mkdir.bind(Deno));
-  const rm = Async.fromPromise(Deno.remove.bind(Deno));
-  const rmdir = Async.fromPromise(Deno.remove.bind(Deno));
-  const create = Async.fromPromise(Deno.create.bind(Deno));
-  const copy = Async.fromPromise(Deno.copy.bind(Deno));
+  const open = Async.fromPromise(Deno.open.bind(Deno))
+  const mkdir = Async.fromPromise(Deno.mkdir.bind(Deno))
+  const rm = Async.fromPromise(Deno.remove.bind(Deno))
+  const rmdir = Async.fromPromise(Deno.remove.bind(Deno))
+  const create = Async.fromPromise(Deno.create.bind(Deno))
+  const copy = Async.fromPromise(Deno.copy.bind(Deno))
 
-  const resolvePath = (...pieces) => path.resolve(path.join(root, ...pieces));
+  const resolvePath = (...pieces) => path.resolve(path.join(root, ...pieces))
 
   /**
    * @param {string} name
    * @returns {Promise<Response>}
    */
   function makeBucket(name) {
-    return Async.of(name.includes(".."))
+    return Async.of(name.includes('..'))
       .chain((invalid) =>
         !invalid ? Async.Resolved(resolvePath(name)) : Async.Rejected(
           HyperErr({
             status: 400,
-            msg: "bucket name cannot contain relative path parts",
+            msg: 'bucket name cannot contain relative path parts',
           }),
         )
       )
@@ -65,7 +65,7 @@ export default function (root) {
           // does exist, so reject
           () =>
             Async.Rejected(
-              HyperErr({ status: 409, msg: "bucket already exists" }),
+              HyperErr({ status: 409, msg: 'bucket already exists' }),
             ),
         )
       )
@@ -76,7 +76,7 @@ export default function (root) {
         handleHyperErr,
         Async.Resolved,
       )
-      .toPromise();
+      .toPromise()
   }
 
   /**
@@ -96,7 +96,7 @@ export default function (root) {
         handleHyperErr,
         Async.Resolved,
       )
-      .toPromise();
+      .toPromise()
   }
 
   /**
@@ -108,9 +108,9 @@ export default function (root) {
       return Promise.resolve(
         HyperErr({
           status: 501,
-          msg: "Not Implemented",
+          msg: 'Not Implemented',
         }),
-      );
+      )
     }
     // Create Writer
     return Async.of(resolvePath(bucket, object))
@@ -121,19 +121,19 @@ export default function (root) {
       )
       // Copy Reader into Writer
       .chain((file) => {
-        const close = Async.fromPromise(() => Promise.resolve(file.close()));
+        const close = Async.fromPromise(() => Promise.resolve(file.close()))
 
         return copy(stream, file)
           .bichain(
             (err) => close().map(always(err)),
             (res) => close().map(always(res)),
-          );
+          )
       })
       .map(always({ ok: true }))
       .bichain(
         handleHyperErr,
         Async.Resolved,
-      ).toPromise();
+      ).toPromise()
   }
 
   /**
@@ -151,7 +151,7 @@ export default function (root) {
       .bichain(
         handleHyperErr,
         Async.Resolved,
-      ).toPromise();
+      ).toPromise()
   }
 
   /**
@@ -163,9 +163,9 @@ export default function (root) {
       return Promise.resolve(
         HyperErr({
           status: 501,
-          msg: "Not Implemented",
+          msg: 'Not Implemented',
         }),
-      );
+      )
     }
 
     return Async.of(resolvePath(bucket, object))
@@ -177,28 +177,28 @@ export default function (root) {
       .bichain(
         handleHyperErr,
         Async.Resolved,
-      ).toPromise();
+      ).toPromise()
   }
 
-  async function listObjects({ bucket, prefix = "" }) {
-    const files = [];
+  async function listObjects({ bucket, prefix = '' }) {
+    const files = []
     try {
       for await (
         const dirEntry of Deno.readDir(
           resolvePath(bucket, prefix),
         )
       ) {
-        files.push(dirEntry.name);
+        files.push(dirEntry.name)
       }
 
-      return files;
+      return files
     } catch (err) {
       // deno-lint-ignore no-ex-assign
-      err = mapBucketDne(err);
+      err = mapBucketDne(err)
       if (isHyperErr(err)) {
-        return err;
+        return err
       }
-      throw err;
+      throw err
     }
   }
 
@@ -210,5 +210,5 @@ export default function (root) {
     removeObject,
     getObject,
     listObjects,
-  });
+  })
 }
