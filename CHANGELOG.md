@@ -1,6 +1,19 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
+
+## [3.0.0](https://github.com/hyper63/hyper-adapter-fs/compare/v2.1.0...v3.0.0) (2023-05-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* putObject accepts a ReadableStream and getObject
+returns a ReadableStream.
+
+### Features
+
+* beef up coverage and address issues [#10](https://github.com/hyper63/hyper-adapter-fs/issues/10) ([06b3e16](https://github.com/hyper63/hyper-adapter-fs/commit/06b3e16ff33770491db53d429e08d544e6b3b129))
+* getObject and putObject return and accept a ReadableStream [#10](https://github.com/hyper63/hyper-adapter-fs/issues/10) ([a16e53d](https://github.com/hyper63/hyper-adapter-fs/commit/a16e53d34397248cbbd40225b881f5919ae4e516))
 
 ## [2.1.0](https://github.com/hyper63/hyper-adapter-fs/compare/v2.0.3...v2.1.0) (2022-08-30)
 
