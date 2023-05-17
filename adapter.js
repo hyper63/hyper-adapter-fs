@@ -1,8 +1,13 @@
 import { crocks, HyperErr, isHyperErr, path, R } from './deps.js'
-import { checkDirExists, handleHyperErr, mapBucketDne } from './utils.js'
 
 const { Async } = crocks
-const { always, identity } = R
+const { always, is, ifElse } = R
+
+export const handleHyperErr = ifElse(
+  isHyperErr,
+  Async.Resolved,
+  Async.Rejected,
+)
 
 /**
  * hyper63 adapter for the storage port
@@ -39,37 +44,82 @@ export default function (root) {
   const mkdir = Async.fromPromise(Deno.mkdir.bind(Deno))
   const rm = Async.fromPromise(Deno.remove.bind(Deno))
   const rmdir = Async.fromPromise(Deno.remove.bind(Deno))
-  const create = Async.fromPromise(Deno.create.bind(Deno))
-  const copy = Async.fromPromise(Deno.copy.bind(Deno))
+  const stat = Async.fromPromise(Deno.stat.bind(Deno))
 
-  const resolvePath = (...pieces) => path.resolve(path.join(root, ...pieces))
+  const resolvePathFromRoot = (...pieces) => path.resolve(path.join(root, ...pieces))
+
+  const checkRelativeParts = (path) =>
+    Async.of(path.includes('..'))
+      .chain((invalid) =>
+        !invalid ? Async.Resolved(path) : Async.Rejected(
+          HyperErr({
+            status: 400,
+            msg: 'cannot contain relative path parts',
+          }),
+        )
+      )
+
+  const checkBucketName = (name) =>
+    checkRelativeParts(name)
+      /**
+       * A bucket name also cannot contain slashes
+       */
+      .map((name) => name.includes('/') || name.includes('\\'))
+      .chain((invalid) =>
+        !invalid ? Async.Resolved(name) : Async.Rejected(
+          HyperErr({
+            status: 400,
+            msg: 'bucket name cannot contain slashes',
+          }),
+        )
+      )
+
+  const checkPathExists = (path, resource = 'bucket') =>
+    Async.of(path)
+      .chain(stat)
+      .bimap(
+        (err) => {
+          if (is(Deno.errors.NotFound)) {
+            return HyperErr({ status: 404, msg: `${resource} does not exist` })
+          }
+          return err
+        },
+        always(path),
+      )
+
+  const checkObjectPath = ({ bucket, object }) =>
+    Async.all([
+      // Bucket checks
+      Async.all([
+        checkBucketName(bucket),
+        checkPathExists(resolvePathFromRoot(bucket)),
+      ]),
+      // Object checks
+      Async.all([
+        checkRelativeParts(object),
+        checkPathExists(resolvePathFromRoot(bucket, object)),
+      ]),
+    ])
+      .map(() => resolvePathFromRoot(bucket, object))
 
   /**
    * @param {string} name
    * @returns {Promise<Response>}
    */
   function makeBucket(name) {
-    return Async.of(name.includes('..'))
-      .chain((invalid) =>
-        !invalid ? Async.Resolved(resolvePath(name)) : Async.Rejected(
-          HyperErr({
-            status: 400,
-            msg: 'bucket name cannot contain relative path parts',
-          }),
-        )
-      )
+    return Async.of(name)
+      .chain(checkBucketName)
+      .map((name) => resolvePathFromRoot(name))
       .chain((path) =>
-        checkDirExists(path).bichain(
-          // directory dne, so resolve
+        checkPathExists(path).bichain(
           () => Async.Resolved(path),
-          // does exist, so reject
           () =>
             Async.Rejected(
               HyperErr({ status: 409, msg: 'bucket already exists' }),
             ),
         )
       )
-      // see https://doc.deno.land/deno/stable/~/Deno.mkdir
+      // Make the directory as the new bucket
       .chain((dir) => mkdir(dir, { recursive: true }))
       .map(always({ ok: true }))
       .bichain(
@@ -84,13 +134,11 @@ export default function (root) {
    * @returns {Promise<Response>}
    */
   function removeBucket(name) {
-    return Async.of(resolvePath(name))
-      // deletes all contents of directory, then directory
+    return Async.of(name)
+      .chain(checkBucketName)
+      .chain((name) => checkPathExists(resolvePathFromRoot(name)))
+      // Delete all contents of directory, then directory
       .chain((bucket) => rmdir(bucket, { recursive: true }))
-      .bimap(
-        mapBucketDne,
-        identity,
-      )
       .map(always({ ok: true }))
       .bichain(
         handleHyperErr,
@@ -112,23 +160,23 @@ export default function (root) {
         }),
       )
     }
-    // Create Writer
-    return Async.of(resolvePath(bucket, object))
-      .chain(create)
-      .bimap(
-        mapBucketDne,
-        identity,
-      )
-      // Copy Reader into Writer
-      .chain((file) => {
-        const close = Async.fromPromise(() => Promise.resolve(file.close()))
 
-        return copy(stream, file)
-          .bichain(
-            (err) => close().map(always(err)),
-            (res) => close().map(always(res)),
-          )
-      })
+    return Async.all([
+      // Bucket checks
+      Async.all([
+        checkBucketName(bucket),
+        checkPathExists(resolvePathFromRoot(bucket)),
+      ]),
+      // Object checks
+      Async.all([
+        checkRelativeParts(object),
+      ]),
+    ])
+      .map(() => resolvePathFromRoot(bucket, object))
+      .chain((path) => open(path, { create: true, write: true, truncate: true }))
+      .chain(Async.fromPromise((file) => {
+        return stream.pipeTo(file.writable)
+      }))
       .map(always({ ok: true }))
       .bichain(
         handleHyperErr,
@@ -141,12 +189,12 @@ export default function (root) {
    * @returns {Promise<Response>}
    */
   function removeObject({ bucket, object }) {
-    return Async.of(resolvePath(bucket, object))
+    return Async.all([
+      checkObjectPath({ bucket, object }),
+      checkPathExists(resolvePathFromRoot(bucket, object)),
+    ])
+      .map(() => resolvePathFromRoot(bucket, object))
       .chain(rm)
-      .bimap(
-        mapBucketDne,
-        identity,
-      )
       .map(always({ ok: true }))
       .bichain(
         handleHyperErr,
@@ -168,38 +216,37 @@ export default function (root) {
       )
     }
 
-    return Async.of(resolvePath(bucket, object))
+    return checkObjectPath({ bucket, object })
       .chain((p) => open(p, { read: true, write: false }))
-      .bimap(
-        mapBucketDne,
-        identity,
-      )
+      .map((file) => file.readable)
       .bichain(
         handleHyperErr,
         Async.Resolved,
       ).toPromise()
   }
 
-  async function listObjects({ bucket, prefix = '' }) {
-    const files = []
-    try {
-      for await (
-        const dirEntry of Deno.readDir(
-          resolvePath(bucket, prefix),
-        )
-      ) {
-        files.push(dirEntry.name)
-      }
+  function listObjects({ bucket, prefix = '' }) {
+    return Async.all([
+      checkBucketName(bucket),
+      checkPathExists(resolvePathFromRoot(bucket, prefix), 'prefix'),
+    ]).chain(Async.fromPromise(async ([, path]) => {
+      const files = []
+      try {
+        for await (const dirEntry of Deno.readDir(path)) {
+          files.push(dirEntry.name)
+        }
 
-      return files
-    } catch (err) {
-      // deno-lint-ignore no-ex-assign
-      err = mapBucketDne(err)
-      if (isHyperErr(err)) {
-        return err
+        return { ok: true, objects: files }
+      } catch (err) {
+        if (is(Deno.errors.NotFound)) {
+          return HyperErr({ status: 404, msg: `${resource} does not exist` })
+        }
+        throw err
       }
-      throw err
-    }
+    })).bichain(
+      handleHyperErr,
+      Async.Resolved,
+    ).toPromise()
   }
 
   return Object.freeze({
