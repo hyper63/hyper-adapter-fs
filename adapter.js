@@ -97,7 +97,7 @@ export default function (root) {
       // Object checks
       Async.all([
         checkRelativeParts(object),
-        checkPathExists(resolvePathFromRoot(bucket, object)),
+        checkPathExists(resolvePathFromRoot(bucket, object), 'object'),
       ]),
     ])
       .map(() => resolvePathFromRoot(bucket, object))
@@ -173,7 +173,27 @@ export default function (root) {
       ]),
     ])
       .map(() => resolvePathFromRoot(bucket, object))
-      .chain((path) => open(path, { create: true, write: true, truncate: true }))
+      /**
+       * Check if the sub-directory in the bucket exists,
+       * and create it if it does not
+       */
+      .chain((p) =>
+        checkPathExists(path.dirname(p))
+          .bichain(
+            /**
+             * The directory does not exist within the bucket, so create it
+             */
+            () => mkdir(path.dirname(p), { recursive: true }).map(() => p),
+            /**
+             * The directory does exist with the bucket, so simply noop
+             */
+            () => Async.Resolved(p),
+          )
+      )
+      .chain((path) => {
+        console.log(path)
+        return open(path, { create: true, write: true, truncate: true })
+      })
       .chain(Async.fromPromise((file) => {
         return stream.pipeTo(file.writable)
       }))
@@ -189,10 +209,7 @@ export default function (root) {
    * @returns {Promise<Response>}
    */
   function removeObject({ bucket, object }) {
-    return Async.all([
-      checkObjectPath({ bucket, object }),
-      checkPathExists(resolvePathFromRoot(bucket, object)),
-    ])
+    return checkObjectPath({ bucket, object })
       .map(() => resolvePathFromRoot(bucket, object))
       .chain(rm)
       .map(always({ ok: true }))
@@ -228,25 +245,38 @@ export default function (root) {
   function listObjects({ bucket, prefix = '' }) {
     return Async.all([
       checkBucketName(bucket),
-      checkPathExists(resolvePathFromRoot(bucket, prefix), 'prefix'),
-    ]).chain(Async.fromPromise(async ([, path]) => {
-      const files = []
-      try {
-        for await (const dirEntry of Deno.readDir(path)) {
-          files.push(dirEntry.name)
-        }
+      checkPathExists(resolvePathFromRoot(bucket)),
+    ])
+      .chain(() =>
+        /**
+         * At this point, we know the bucket exists, but the prefix may not,
+         * but that shouldn't result in an error
+         *
+         * So if the prefix does not exist we just return an empty list of objects
+         */
+        checkPathExists(resolvePathFromRoot(bucket, prefix)).bichain(
+          () => Async.Resolved({ ok: true, objects: [] }),
+          Async.fromPromise(async (path) => {
+            const files = []
+            try {
+              for await (const dirEntry of Deno.readDir(path)) {
+                files.push(dirEntry.name)
+              }
 
-        return { ok: true, objects: files }
-      } catch (err) {
-        if (is(Deno.errors.NotFound)) {
-          return HyperErr({ status: 404, msg: `${resource} does not exist` })
-        }
-        throw err
-      }
-    })).bichain(
-      handleHyperErr,
-      Async.Resolved,
-    ).toPromise()
+              return { ok: true, objects: files }
+            } catch (err) {
+              if (is(Deno.errors.NotFound)) {
+                return HyperErr({ status: 404, msg: `${resource} does not exist` })
+              }
+              throw err
+            }
+          }),
+        )
+      )
+      .bichain(
+        handleHyperErr,
+        Async.Resolved,
+      ).toPromise()
   }
 
   return Object.freeze({
