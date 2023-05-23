@@ -191,7 +191,6 @@ export default function (root) {
           )
       )
       .chain((path) => {
-        console.log(path)
         return open(path, { create: true, write: true, truncate: true })
       })
       .chain(Async.fromPromise((file) => {
