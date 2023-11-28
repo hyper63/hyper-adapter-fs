@@ -26,7 +26,7 @@
 import { default as fs } from 'https://x.nest.land/hyper-adapter-fs@2.0.3/mod.js'
 
 export default {
-  app: opine,
+  app,
   adapter: [{ port: 'storage', plugins: [fs({ dir: './data' })] }],
 }
 ```
