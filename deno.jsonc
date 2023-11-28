@@ -1,5 +1,7 @@
 {
   "tasks": {
+    "prepare": "deno run -A npm:husky@^8 install",
+    "staged": "deno run -A npm:lint-staged@^15",
     "test": "deno lint && deno fmt --check && deno test -A --no-check",
     "cache": "deno cache --lock=deno.lock --lock-write deps.js dev_deps.js test/harness.js",
     "harness": "deno run --no-check --unstable -A ./test/harness.js"
